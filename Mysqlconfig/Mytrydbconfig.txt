@@ -1,0 +1,79 @@
+from flask import Flask, jsonify, request
+import pymysql
+
+app = Flask(__name__)
+
+# MySQL connection setup
+db_config = {
+    'host': 'localhost',
+    'user': 'root',
+    'password': 'Kavi$3108',
+    'database': 'your_database'
+}
+
+def get_db_connection():
+    connection = pymysql.connect(**db_config)
+    return connection
+
+# Read - Get all users
+@app.route('/users', methods=['GET'])
+def get_users():
+    connection = get_db_connection()
+    cursor = connection.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM users")
+    users = cursor.fetchall()
+    cursor.close()
+    connection.close()
+    return jsonify(users)
+
+# Read - Get user by ID
+@app.route('/users/<int:user_id>', methods=['GET'])
+def get_user(user_id):
+    connection = get_db_connection()
+    cursor = connection.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+    user = cursor.fetchone()
+    cursor.close()
+    connection.close()
+    if user:
+        return jsonify(user)
+    else:
+        return jsonify({"message": "User not found"}), 404
+
+# Create - Add a new user
+@app.route('/users', methods=['POST'])
+def create_user():
+    new_user = request.json
+    connection = get_db_connection()
+    cursor = connection.cursor()
+    cursor.execute("INSERT INTO users (name, email) VALUES (%s, %s)", (new_user['name'], new_user['email']))
+    connection.commit()
+    cursor.close()
+    connection.close()
+    return jsonify({"id": cursor.lastrowid, "name": new_user['name'], "email": new_user['email']}), 201
+
+# Update - Modify an existing user
+@app.route('/users/<int:user_id>', methods=['PUT'])
+def update_user(user_id):
+    data = request.json
+    connection = get_db_connection()
+    cursor = connection.cursor()
+    cursor.execute("UPDATE users SET name = %s, email = %s WHERE id = %s", (data['name'], data['email'], user_id))
+    connection.commit()
+    cursor.close()
+    connection.close()
+    return jsonify({"id": user_id, "name": data['name'], "email": data['email']})
+
+# Delete - Remove a user
+@app.route('/users/<int:user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    connection = get_db_connection()
+    cursor = connection.cursor()
+    cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+    connection.commit()
+    cursor.close()
+    connection.close()
+    return jsonify({"message": "User deleted"}), 200
+
+if __name__ == '__main__':
+    app.run(debug=True)
